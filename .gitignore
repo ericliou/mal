@@ -7,6 +7,9 @@
 .mal_history
 .crystal
 .lein
+.cpcache
+.nrepl-port
+Session.vim
 .m2
 .ivy2
 .sbt

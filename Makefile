@@ -234,6 +234,10 @@ $(foreach i,$(DO_IMPLS),$(foreach s,$(STEPS),build^$(i)^$(s))): $$(call $$(word 
 # Test rules
 #
 
+$(info $(ALL_TESTS))
+$(info STEP_TEST_FILES)
+$(info $(STEP_TEST_FILES))
+
 $(ALL_TESTS): $$(call $$(word 2,$$(subst ^, ,$$(@)))_STEP_TO_PROG,$$(word 3,$$(subst ^, ,$$(@))))
 	@$(foreach impl,$(word 2,$(subst ^, ,$(@))),\
 	  $(foreach step,$(word 3,$(subst ^, ,$(@))),\
