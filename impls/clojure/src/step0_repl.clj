@@ -1,4 +1,5 @@
-(ns step0-repl)
+(ns step0-repl
+  (:require [readline]))
 
 (def read* identity)
 (def eval* identity)
@@ -6,9 +7,7 @@
 
 (def rep (comp print* eval* read*))
 
-(defn run [_]
+(defn run [& _]
   (while true
-    (print "user> ")
-    (flush)
-    (println (rep (read-line)))
+    (println (rep (readline/fancy-read-line)))
     (flush)))
