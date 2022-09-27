@@ -2,7 +2,7 @@
 STEP=${STEP:-stepA_mal}
 
 # to kebab, since ns is in kebab
-STEP_KEBAB=${STEP/_/-}
+STEP_KEBAB=${STEP//_/-}
 
 cd $(dirname $0)
 exec clojure -X ${STEP_KEBAB}/run "${@}"
