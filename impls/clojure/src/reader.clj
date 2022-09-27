@@ -21,15 +21,15 @@
 
 (declare read-form)
 
-(defn read-token* [token]
+(defn read-atom* [token]
   (cond
     (re-matches #"-?\d+" token) (Long/parseLong token)
     (re-matches #"-?\d+(\.\d+)?" token) (Double/parseDouble token)
     (Character/isLetter (first token)) (symbol token)
     :else (throw (ex-info "Reader can't read token. Unknown format." {:token token}))))
 
-(defn read-token [[head & remaining]]
-  {:result (read-token* head)
+(defn read-atom [[head & remaining]]
+  {:result (read-atom* head)
    :tokens remaining})
 
 (defn read-list [tokens]
@@ -52,7 +52,7 @@
       (= "(" token) (read-list tokens)
 
       ; simplification: in case of loose tokens to evaluate, read the first token only, ignore the rest
-      :else (read-token tokens))))
+      :else (read-atom tokens))))
 
 (defn read-form1 [tokens]
   (:result (tap (read-form tokens))))
@@ -75,7 +75,7 @@
                (= t ")") (let [form (peek stack) ; pop top stack and merge into parent
                                remaining (pop stack)]
                            (conj-top remaining form))
-               :else (let [form (read-token* t)]
+               :else (let [form (read-atom* t)]
                        (conj-top stack form))))
            '()
            tokens)))
