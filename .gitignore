@@ -9,7 +9,7 @@
 .lein
 .cpcache
 .nrepl-port
-Session.vim
+Session.vim*
 .m2
 .ivy2
 .sbt

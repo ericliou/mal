@@ -1,7 +1,5 @@
 (ns reader
-  (:require
-   clojure.edn
-   [clojure.string :as string]))
+  (:require [clojure.string :as string]))
 
 ; [\s,]*
 ; (~@
@@ -13,6 +11,9 @@
 
 (def tokens-regex
   #"[\s,]*(~@|[\[\]{}()'`~^@]|\"(?:\\.|[^\\\"])*\"?|;.*|[^\s\[\]{}('\"`,;)]*)")
+
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
+(defn tap [x] (prn "tap> " x) (flush) x)
 
 (defn tokenize [s]
   (->> (re-seq tokens-regex s)
@@ -53,49 +54,48 @@
       ; simplification: in case of loose tokens to evaluate, read the first token only, ignore the rest
       :else (read-token tokens))))
 
+(defn read-form1 [tokens]
+  (:result (read-form tokens)))
+
+(defn conj-top [stack form]
+  (if-let [parent (peek stack)]
+    (conj (pop stack) (conj parent form))
+    (list form)))
+
 (defn read-form2
   "Simpler but less fancy.
-  Use a explicit stack, instead of the call stack, to track the tree depth."
+  Use a explicit stack, instead of the call stack, to track the tree's depth."
   [tokens]
-  (reduce (fn [stack t]
-            (cond
-              (= t "(") (conj stack [])
-              (= t ")") (let [current (peek stack) ; pop top stack and merge into parent
-                              remaining (pop stack)
-                              parent (peek remaining)
-                              new-parent (conj parent current)]
-                          (conj (pop remaining) new-parent))
-              :else (let [token (read-token* t)]
-                      (if (peek stack)
-                        (conj (pop stack) (conj (peek stack) token)) ; update top stack with new token
+  (prn "tokens: " tokens)
+  (peek
+   (reduce (fn [stack t]
+             (prn "stack: " stack)
+             (cond
+               (= t "(") (conj stack [])
+               (= t ")") (let [form (peek stack) ; pop top stack and merge into parent
+                               remaining (pop stack)]
+                           (conj-top remaining form))
+               :else (let [form (read-token* t)]
+                       (conj-top stack form))))
+           '()
+           tokens)))
 
-                        ; simplification: in case of loose tokens to evaluate, read the first token only, ignore the rest
-                        (conj stack token)))))
-          tokens))
-
-
-(comment (read-form2 ["-2.1"])
-         ; => -2.1
-         )
-(comment (read-form ["-2.1"])
-         ; => -2.1
-         )
-(comment (read-form ["(" ")"])
-         ; => ( 1 2 )
-         )
-(comment (read-form2 ["(" "1" "2" ")"])
-         ; => ( 1 2 )
-         )
-(comment (read-form2 ["(" "0" "(" "1" "4" ")" "2" "3" ")"])
-         ; => ( 1 2 )
-         )
+(defn read-str-fn
+  "Choose which read-form implementation to use"
+  [read-form-fn]
+  (fn [s]
+    (read-form-fn (tokenize s))))
 
 (defn read-str [s]
-  (let [tokens (tokenize s)]
-    (read-form tokens)))
+  ((read-str-fn read-form1) s))
+
+(comment (read-form2 ["-2.1"]))
+(comment (read-form1 ["-2.1"]))
+(comment (read-form2 ["(" ")"]))
+(comment (read-form2 ["(" "1" "2" ")"]))
+(comment (read-form2 ["(" "0" "(" "1" "4" ")" "2" "3" ")"]))
 
 (comment (read-str "(0 (1 2) 3 4 (5) 6)"))
 
 (comment (tokenize " ( 123 \"abc\" ) ")
          (tokenize "123"))
-
