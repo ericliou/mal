@@ -25,7 +25,7 @@
   (cond
     (re-matches #"-?\d+" token) (Long/parseLong token)
     (re-matches #"-?\d+(\.\d+)?" token) (Double/parseDouble token)
-    (Character/isLetter (first token)) (symbol token)
+    (re-matches #"[^\s\[\]{}('\"`,;)]*" token) (symbol token) ; TODO remove regex duplication
     :else (throw (ex-info "Reader can't read token. Unknown format." {:token token}))))
 
 (defn read-atom [[head & remaining]]
@@ -55,7 +55,7 @@
       :else (read-atom tokens))))
 
 (defn read-form1 [tokens]
-  (:result (tap (read-form tokens))))
+  (:result (read-form tokens)))
 
 (defn conj-top [stack form]
   (if-let [parent (peek stack)]

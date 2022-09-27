@@ -1,8 +1,8 @@
 (ns step1-read-print
-  (:require
-   [readline]))
+  (:require [readline]
+            [reader]))
 
-(def read* identity)
+(def read* reader/read-str)
 (def eval* identity)
 (def print* identity)
 
