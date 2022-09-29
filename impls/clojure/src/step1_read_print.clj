@@ -1,10 +1,11 @@
 (ns step1-read-print
   (:require [readline]
-            [reader]))
+            [reader]
+            [printer]))
 
 (def read* reader/read-str)
 (def eval* identity)
-(def print* identity)
+(def print* printer/abs->str)
 
 (def rep (comp print* eval* read*))
 
