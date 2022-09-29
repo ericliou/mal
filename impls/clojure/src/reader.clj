@@ -21,10 +21,19 @@
 
 (declare read-form)
 
+(defn- read-atom-string [token]
+  (-> token
+      (string/replace  #"^\"" "")
+      (string/replace #"\"$" "")
+      (string/replace #"\\\"" "\"")
+      (string/replace #"\\n" "\n")))
+
 (defn read-atom* [token]
   (cond
     (re-matches #"-?\d+" token) (Long/parseLong token)
     (re-matches #"-?\d+(\.\d+)?" token) (Double/parseDouble token)
+    (#{"true" "false"} token) (Boolean/parseBoolean token)
+    (re-find #"^\"" token) (read-atom-string token)
     (re-matches #"[^\s\[\]{}('\"`,;)]*" token) (symbol token) ; TODO remove regex duplication
     :else (throw (ex-info "Reader can't read token. Unknown format." {:token token}))))
 

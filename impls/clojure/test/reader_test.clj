@@ -7,9 +7,14 @@
   (testing "correctly parsing"
     (are [s result] (= result (reader/read-str s))
          "0" 0
+         "true" true
+         "false" false
          "-1.3" -1.3
          " -1.3 " -1.3
          "abc" 'abc
+         "\"I'm a string\"" "I'm a string"
+         "\"\\n\"" "\n"
+         "\" \\\" \"" " \" "
          "()" []
          " ( 1 ) " [1]
          "((2) (3 4) 5 (6))" [[2] [3 4] 5 [6]]
