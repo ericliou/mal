@@ -33,6 +33,7 @@
     (re-matches #"-?\d+" token) (Long/parseLong token)
     (re-matches #"-?\d+(\.\d+)?" token) (Double/parseDouble token)
     (#{"true" "false"} token) (Boolean/parseBoolean token)
+    (= "nil" token) nil
     (re-find #"^\"" token) (read-atom-string token)
     (re-matches #"[^\s\[\]{}('\"`,;)]*" token) (symbol token) ; TODO remove regex duplication
     :else (throw (ex-info "Reader can't read token. Unknown format." {:token token}))))

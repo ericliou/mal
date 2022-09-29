@@ -11,6 +11,7 @@
          "false" false
          "-1.3" -1.3
          " -1.3 " -1.3
+         "nil" nil
          "abc" 'abc
          "\"I'm a string\"" "I'm a string"
          "\"\\n\"" "\n"
