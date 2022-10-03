@@ -11,6 +11,9 @@
 
 (defn run [& _]
   (while true
-    (println (rep (readline/fancy-read-line)))
+    (try
+      (println (rep (readline/fancy-read-line)))
+      (catch Exception ex
+        (println ex)))
     (flush)))
 

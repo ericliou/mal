@@ -42,9 +42,14 @@
   {:result (read-atom* head)
    :tokens remaining})
 
+(defn- validate-balancing-parens [tokens]
+  (when (nil? tokens)
+    (throw (ex-info "EOF Exception. Unmatched parenthesis." {}))))
+
 (defn read-list [tokens]
   (loop [tokens (rest tokens) ; pop off open paren
          result []]
+    (validate-balancing-parens tokens)
     (let [[head & remaining] tokens]
       (cond
         (not= ")" head) (let [form (read-form tokens)]
@@ -52,15 +57,14 @@
                                  (conj result (:result form))))
         (= ")" head) {:result result
                       :tokens remaining}
-
-        ; else unbalanced if close-paren not found
         ))))
 
 (defn read-form [tokens]
   (let [token (first tokens)]
     (cond
+      (= ")" token) (throw (ex-info "Unbalanced parenthesis" {:error :unbalanced-parenthesis
+                                                              :remaining-tokens tokens}))
       (= "(" token) (read-list tokens)
-
       ; simplification: in case of loose tokens to evaluate, read the first token only, ignore the rest
       :else (read-atom tokens))))
 
