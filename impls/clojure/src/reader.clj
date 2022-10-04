@@ -19,7 +19,7 @@
        (map second)
        (remove string/blank?)))
 
-(declare read-form)
+(declare read-form*)
 
 (defn- read-atom-string [token]
   (-> token
@@ -42,24 +42,23 @@
   {:result (read-atom* head)
    :tokens remaining})
 
-(defn- validate-balancing-parens [tokens]
+(defn- validate-matching-paren [tokens]
   (when (nil? tokens)
     (throw (ex-info "EOF Exception. Unmatched parenthesis." {}))))
 
 (defn read-list [tokens]
   (loop [tokens (rest tokens) ; pop off open paren
          result []]
-    (validate-balancing-parens tokens)
+    (validate-matching-paren tokens)
     (let [[head & remaining] tokens]
       (cond
-        (not= ")" head) (let [form (read-form tokens)]
+        (not= ")" head) (let [form (read-form* tokens)]
                           (recur (:tokens form)
                                  (conj result (:result form))))
         (= ")" head) {:result result
-                      :tokens remaining}
-        ))))
+                      :tokens remaining}))))
 
-(defn read-form [tokens]
+(defn read-form* [tokens]
   (let [token (first tokens)]
     (cond
       (= ")" token) (throw (ex-info "Unbalanced parenthesis" {:error :unbalanced-parenthesis
@@ -68,31 +67,8 @@
       ; simplification: in case of loose tokens to evaluate, read the first token only, ignore the rest
       :else (read-atom tokens))))
 
-(defn read-form1 [tokens]
-  (:result (read-form tokens)))
-
-(defn conj-top [stack form]
-  (if-let [parent (peek stack)]
-    (conj (pop stack) (conj parent form))
-    (list form)))
-
-(defn read-form2
-  "Simpler but less fancy.
-  Use a explicit stack, instead of the call stack, to track the tree's depth."
-  [tokens]
-  (prn "tokens: " tokens)
-  (peek
-   (reduce (fn [stack t]
-             (prn "stack: " stack)
-             (cond
-               (= t "(") (conj stack [])
-               (= t ")") (let [form (peek stack) ; pop top stack and merge into parent
-                               remaining (pop stack)]
-                           (conj-top remaining form))
-               :else (let [form (read-atom* t)]
-                       (conj-top stack form))))
-           '()
-           tokens)))
+(defn read-form [tokens]
+  (:result (read-form* tokens)))
 
 (defn read-str-fn
   "Choose which read-form implementation to use"
@@ -101,13 +77,12 @@
     (read-form-fn (tokenize s))))
 
 (defn read-str [s]
-  ((read-str-fn read-form1) s))
+  ((read-str-fn read-form) s))
 
-(comment (read-form2 ["-2.1"]))
-(comment (read-form1 ["-2.1"]))
-(comment (read-form2 ["(" ")"]))
-(comment (read-form2 ["(" "1" "2" ")"]))
-(comment (read-form2 ["(" "0" "(" "1" "4" ")" "2" "3" ")"]))
+(comment (read-form ["-2.1"]))
+(comment (read-form ["(" ")"]))
+(comment (read-form ["(" "1" "2" ")"]))
+(comment (read-form ["(" "0" "(" "1" "4" ")" "2" "3" ")"]))
 
 (comment (read-str "(0 (1 2) 3 4 (5) 6)"))
 
