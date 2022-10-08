@@ -58,12 +58,28 @@
         (= ")" head) {:result result
                       :tokens remaining}))))
 
+(def ^:private reader-macro->symbol
+  {"'" 'quote
+   "`" 'quasiquote
+   "~" 'unquote
+   "~@" 'splice-unquote
+   "@" 'deref})
+
+(def ^:private reader-macro? (set (keys reader-macro->symbol)))
+
+(defn read-reader-macro [tokens]
+  (let [sym (reader-macro->symbol (first tokens))
+        {:keys [result tokens]} (read-form* (rest tokens))]
+    {:result [sym result]
+     :tokens tokens}))
+
 (defn read-form* [tokens]
   (let [token (first tokens)]
     (cond
       (= ")" token) (throw (ex-info "Unbalanced parenthesis" {:error :unbalanced-parenthesis
                                                               :remaining-tokens tokens}))
       (= "(" token) (read-list tokens)
+      (reader-macro? token) (read-reader-macro tokens)
       ; simplification: in case of loose tokens to evaluate, read the first token only, ignore the rest
       :else (read-atom tokens))))
 
@@ -79,6 +95,7 @@
 (defn read-str [s]
   ((read-str-fn read-form) s))
 
+(comment (read-form ["'" "(" "1" "2" ")"]))
 (comment (read-form ["-2.1"]))
 (comment (read-form ["(" ")"]))
 (comment (read-form ["(" "1" "2" ")"]))
