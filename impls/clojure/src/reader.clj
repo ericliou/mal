@@ -36,7 +36,8 @@
     (= "nil" token) nil
     (re-find #"^\"" token) (read-atom-string token)
     (re-matches #"[^\s\[\]{}('\"`,;)]*" token) (symbol token) ; TODO remove regex duplication
-    :else (throw (ex-info "Reader can't read token. Unknown format." {:token token}))))
+    :else (throw (ex-info "Reader can't read token. Unknown format." {::error ::token-unreadable
+                                                                      :token token}))))
 
 (defn read-atom [[head & remaining]]
   {:result (read-atom* head)
@@ -53,10 +54,10 @@
     (let [[head & remaining] tokens]
       (cond
         (not= separator head) (let [form (read-form* tokens)]
-                          (recur (:tokens form)
-                                 (conj result (:result form))))
+                                (recur (:tokens form)
+                                       (conj result (:result form))))
         (= separator head) {:result result
-                      :tokens remaining}))))
+                            :tokens remaining}))))
 
 (defn read-list
   "Explicitly coerce the collection into list.
@@ -71,6 +72,18 @@
   (-> (read-collection "]" tokens)
       (update :result vec)))
 
+(defn validate-even-number [coll]
+  (if (even? (count coll))
+    coll
+    (throw (ex-info "The number of elements in the map is not even" {:error ::map-odd-elements
+                                                                     :elements coll}))))
+
+(defn read-map
+  [tokens]
+  (-> (read-collection "}" tokens)
+      (validate-even-number)
+      (update :result #(apply hash-map %))))
+
 (def ^:private reader-macro->symbol
   {"'" 'quote
    "`" 'quasiquote
@@ -83,16 +96,17 @@
 (defn read-reader-macro [tokens]
   (let [sym (reader-macro->symbol (first tokens))
         {:keys [result tokens]} (read-form* (rest tokens))]
-    {:result [sym result]
+    {:result (list sym result)
      :tokens tokens}))
 
 (defn read-form* [tokens]
   (let [token (first tokens)]
     (cond
-      (#{")" "]"} token) (throw (ex-info "Unbalanced parenthesis" {:error :unbalanced-parenthesis
-                                                              :remaining-tokens tokens}))
+      (#{")" "]" "}"} token) (throw (ex-info "Unbalanced parenthesis" {:error ::unbalanced-parenthesis
+                                                                       :remaining-tokens tokens}))
       (= "(" token) (read-list tokens)
       (= "[" token) (read-vector tokens)
+      (= "{" token) (read-map tokens)
       (reader-macro? token) (read-reader-macro tokens)
       ; simplification: in case of loose tokens to evaluate, read the first token only, ignore the rest
       :else (read-atom tokens))))

@@ -27,6 +27,12 @@
       "[]" []
       " [ 1 ] " [1]
       "[[2] (3 4) 5 [6]]" [[2] '(3 4) 5 [6]]))
+  (testing "parsing of maps"
+    (is (map? (reader/read-str " {1 2 3 4} ")))
+    (are [s result] (= result (reader/read-str s))
+      " {} " {}
+      " {\"1\" 2 3 4}" {"1" 2 3 4}
+      "{1 a 2 [3 4] 0 {5 6}}" {1 'a 2 [3 4] 0 {5 6}}))
   (testing "parsing of macros"
     (are [s result] (= result (reader/read-str s))
       "'(1 2)" ['quote [1 2]]

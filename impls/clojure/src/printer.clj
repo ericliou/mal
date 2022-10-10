@@ -14,6 +14,11 @@
 
 (comment (print (from-string "hi\nhi\"ho")))
 
+(declare abs->string)
+
+(defn coll-elements->string [coll]
+  (string/join " " (map abs->string coll)))
+
 (defn abs->string
   "The main fn is not using clojure.core/pr on purpose,
   so we implement string conversion ourselves."
@@ -22,7 +27,9 @@
       (symbol? abs) (str abs)
       (number? abs) (str abs)
       (nil? abs) "nil"
-      (vector? abs) (str "(" (string/join " " (map abs->string abs)) ")")
+      (list? abs) (str "(" (coll-elements->string abs) ")")
+      (vector? abs) (str "[" (coll-elements->string abs) "]")
+      (map? abs) (str "{" (coll-elements->string (apply concat abs)) "}")
       (string? abs) (from-string abs)
       :else (str abs)))
 
