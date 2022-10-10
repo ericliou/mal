@@ -46,17 +46,30 @@
   (when (nil? tokens)
     (throw (ex-info "EOF Exception. Unmatched parenthesis." {}))))
 
-(defn read-list [tokens]
+(defn read-collection [separator tokens]
   (loop [tokens (rest tokens) ; pop off open paren
          result []]
     (validate-matching-paren tokens)
     (let [[head & remaining] tokens]
       (cond
-        (not= ")" head) (let [form (read-form* tokens)]
+        (not= separator head) (let [form (read-form* tokens)]
                           (recur (:tokens form)
                                  (conj result (:result form))))
-        (= ")" head) {:result result
+        (= separator head) {:result result
                       :tokens remaining}))))
+
+(defn read-list
+  "Explicitly coerce the collection into list.
+  This is to carry the type information in the data structure itself.
+  This might be too brittle, since manipulating seq will destroy this information."
+  [tokens]
+  (-> (read-collection ")" tokens)
+      (update :result #(apply list %))))
+
+(defn read-vector
+  [tokens]
+  (-> (read-collection "]" tokens)
+      (update :result vec)))
 
 (def ^:private reader-macro->symbol
   {"'" 'quote
@@ -76,9 +89,10 @@
 (defn read-form* [tokens]
   (let [token (first tokens)]
     (cond
-      (= ")" token) (throw (ex-info "Unbalanced parenthesis" {:error :unbalanced-parenthesis
+      (#{")" "]"} token) (throw (ex-info "Unbalanced parenthesis" {:error :unbalanced-parenthesis
                                                               :remaining-tokens tokens}))
       (= "(" token) (read-list tokens)
+      (= "[" token) (read-vector tokens)
       (reader-macro? token) (read-reader-macro tokens)
       ; simplification: in case of loose tokens to evaluate, read the first token only, ignore the rest
       :else (read-atom tokens))))

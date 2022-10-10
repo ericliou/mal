@@ -16,10 +16,17 @@
       "-1.3" -1.3
       " -1.3 " -1.3))
   (testing "parsing of lists"
+    (is (list? (reader/read-str "(1 2 3)")))
     (are [s result] (= result (reader/read-str s))
       "()" []
       " ( 1 ) " [1]
       "((2) (3 4) 5 (6))" [[2] [3 4] 5 [6]]))
+  (testing "parsing of vectors"
+    (is (vector? (reader/read-str "[1 2 3]")))
+    (are [s result] (= result (reader/read-str s))
+      "[]" []
+      " [ 1 ] " [1]
+      "[[2] (3 4) 5 [6]]" [[2] '(3 4) 5 [6]]))
   (testing "parsing of macros"
     (are [s result] (= result (reader/read-str s))
       "'(1 2)" ['quote [1 2]]
@@ -32,4 +39,3 @@
       "nil" nil
       "abc" 'abc
       "a-b-c" 'a-b-c)))
-
