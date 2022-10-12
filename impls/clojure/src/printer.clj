@@ -5,9 +5,11 @@
   "Reverse what read-str does with strings.
   - explicitly print \n
   - escape double quote
+  - escape backslash
   - surround with double quotes"
   [abs]
   (-> abs
+      (string/replace "\\" "\\\\")
       (string/replace "\n" "\\n")
       (string/replace "\"" "\\\"")
       (#(str "\"" % "\""))))

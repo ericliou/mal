@@ -21,12 +21,27 @@
 
 (declare read-form*)
 
-(defn- read-atom-string [token]
-  (-> token
+(defn second-last [s]
+  (second (reverse s)))
+
+(defn- validate-string-atom
+  "Expects a string that at least starts and ends with double-quotes."
+  [a]
+  (let [sanitized (string/replace a "\\\\" " ")] ; remove \\ to find out if last double-quote has been escaped
+    (when (or (= (second-last sanitized) \\)
+              (not= \" (first sanitized) (last sanitized))
+              (< (count sanitized) 2))
+      (throw (ex-info "EOF. Unbalanced quotes" {:error ::invalid-string :atom sanitized}))))
+  a)
+
+(defn- read-atom-string [a]
+  (-> a
+      validate-string-atom
       (string/replace  #"^\"" "")
       (string/replace #"\"$" "")
-      (string/replace #"\\\"" "\"")
-      (string/replace #"\\n" "\n")))
+      (string/replace "\\\"" "\"")
+      (string/replace "\\n" "\n")
+      (string/replace "\\\\" "\\")))
 
 (defn read-atom* [token]
   (cond
@@ -36,7 +51,7 @@
     (= "nil" token) nil
     (re-find #"^\"" token) (read-atom-string token)
     (re-matches #"[^\s\[\]{}('\"`,;)]*" token) (symbol token) ; TODO remove regex duplication
-    :else (throw (ex-info "Reader can't read token. Unknown format." {::error ::token-unreadable
+    :else (throw (ex-info "Reader can't read token. Unknown format." {:error ::token-unreadable
                                                                       :token token}))))
 
 (defn read-atom [[head & remaining]]

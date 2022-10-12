@@ -7,8 +7,17 @@
   (testing "parsing of string"
     (are [s result] (= result (reader/read-str s))
       "\"I'm a string\"" "I'm a string"
-      "\"\\n\"" "\n"
-      "\" \\\" \"" " \" "))
+      "\"\\n\"" "\n" ; new line
+      "\" \\\" \"" " \" " ; double-quote
+      "\"\\\\\"" "\\" ; escape backslash
+      )
+
+    (testing "EOF"
+      (are [s] (thrown? Exception (reader/read-str s))
+        "\""
+        "\"\\\""
+        "\"\\\"")))
+
   (testing "parsing of numbers"
     (are [s result] (= result (reader/read-str s))
       "0" 0
