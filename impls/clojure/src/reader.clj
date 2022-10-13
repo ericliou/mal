@@ -109,14 +109,19 @@
 
 (def ^:private reader-macro? (set (keys reader-macro->symbol)))
 
-(defn- read-two-forms [tokens]
-  (let [{:keys [result tokens]} (read-form* tokens)
-        second-form (read-form* tokens)]
-    {:result [result (:result second-form)]
-     :tokens (:tokens second-form)}))
+(defn- combine-read [state1 state2]
+  {:result (conj (:result state1) (:result state2))
+   :tokens (:tokens state2)})
+
+(defn- read-forms [n tokens]
+  (loop [i n
+         state {:tokens tokens :result []}]
+    (if (pos? i)
+      (recur (dec i) (combine-read state (read-form* (:tokens state))))
+      state)))
 
 (defn- read-macro-with-meta [sym tokens]
-  (let [{:keys [result tokens]} (read-two-forms tokens)]
+  (let [{:keys [result tokens]} (read-forms 2 tokens)]
     {:result (apply list sym (reverse result))
      :tokens tokens}))
 
