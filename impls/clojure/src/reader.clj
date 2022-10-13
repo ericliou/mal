@@ -104,15 +104,32 @@
    "`" 'quasiquote
    "~" 'unquote
    "~@" 'splice-unquote
-   "@" 'deref})
+   "@" 'deref
+   "^" 'with-meta})
 
 (def ^:private reader-macro? (set (keys reader-macro->symbol)))
 
-(defn read-reader-macro [tokens]
-  (let [sym (reader-macro->symbol (first tokens))
-        {:keys [result tokens]} (read-form* (rest tokens))]
+(defn- read-two-forms [tokens]
+  (let [{:keys [result tokens]} (read-form* tokens)
+        second-form (read-form* tokens)]
+    {:result [result (:result second-form)]
+     :tokens (:tokens second-form)}))
+
+(defn- read-macro-with-meta [sym tokens]
+  (let [{:keys [result tokens]} (read-two-forms tokens)]
+    {:result (apply list sym (reverse result))
+     :tokens tokens}))
+
+(defn- read-macro-generic [sym tokens]
+  (let [{:keys [result tokens]} (read-form* tokens)]
     {:result (list sym result)
      :tokens tokens}))
+
+(defn- read-reader-macro [tokens]
+  (let [sym (reader-macro->symbol (first tokens))]
+    (if (= sym 'with-meta)
+      (read-macro-with-meta sym (rest tokens))
+      (read-macro-generic sym (rest tokens)))))
 
 (defn read-form* [tokens]
   (let [token (first tokens)]

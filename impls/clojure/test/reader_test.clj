@@ -46,7 +46,8 @@
     (are [s result] (= result (reader/read-str s))
       "'(1 2)" ['quote [1 2]]
       "~@(1 2)" ['splice-unquote [1 2]]
-      "`(1 ~a 3)" ['quasiquote [1 ['unquote 'a] 3]]))
+      "`(1 ~a 3)" ['quasiquote [1 ['unquote 'a] 3]]
+       "^{\"a\" 1} [1 2 3]" '(with-meta [1 2 3] {"a" 1})))
   (testing "other parsing"
     (are [s result] (= result (reader/read-str s))
       "true" true
