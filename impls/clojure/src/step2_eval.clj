@@ -18,6 +18,10 @@
                     (throw (ex-info "Unresolved symbol." {:error ::unresolved-symbol
                                                           :symbol ast})))
     (list? ast) (map #(eval* env %) ast)
+    (vector? ast) (mapv #(eval* env %) ast)
+    (map? ast) (into {} (map (fn [[k v]]
+                               (vector k (eval* env v))) ast))
+
     :else ast))
 
 (defn eval* [env ast]
