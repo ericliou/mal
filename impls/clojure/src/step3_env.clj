@@ -54,7 +54,9 @@
           {:env (assoc env sym-name result)
            :evaluation result})))
 
-(defn root-eval* [env ast]
+(defn root-eval*
+  "Note: only considering root level `def!` for now."
+  [env ast]
   (if (changes-env? ast)
     (eval-and-update-env env ast)
     {:evaluation (eval* env ast) :env env}))
