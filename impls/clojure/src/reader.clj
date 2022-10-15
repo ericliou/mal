@@ -51,8 +51,9 @@
     (= "nil" token) nil
     (re-find #"^\"" token) (read-atom-string token)
     (re-matches #"[^\s\[\]{}('\"`,;)]*" token) (symbol token) ; TODO remove regex duplication
-    :else (throw (ex-info "Reader can't read token. Unknown format." {:error ::token-unreadable
-                                                                      :token token}))))
+    :else (throw (ex-info "Reader can't read token. Unknown format."
+                          {:error ::token-unreadable
+                           :token token}))))
 
 (defn read-atom [[head & remaining]]
   {:result (read-atom* head)
@@ -90,8 +91,9 @@
 (defn validate-even-number [coll]
   (if (even? (count coll))
     coll
-    (throw (ex-info "The number of elements in the map is not even" {:error ::map-odd-elements
-                                                                     :elements coll}))))
+    (throw (ex-info "The number of elements in the map is not even"
+                    {:error ::map-odd-elements
+                     :elements coll}))))
 
 (defn read-map
   [tokens]
@@ -139,8 +141,9 @@
 (defn read-form* [tokens]
   (let [token (first tokens)]
     (cond
-      (#{")" "]" "}"} token) (throw (ex-info "Unbalanced parenthesis" {:error ::unbalanced-parenthesis
-                                                                       :remaining-tokens tokens}))
+      (#{")" "]" "}"} token) (throw (ex-info "Unbalanced parenthesis"
+                                             {:error ::unbalanced-parenthesis
+                                              :remaining-tokens tokens}))
       (= "(" token) (read-list tokens)
       (= "[" token) (read-vector tokens)
       (= "{" token) (read-map tokens)
