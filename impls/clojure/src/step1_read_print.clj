@@ -5,7 +5,7 @@
 
 (def read* reader/read-str)
 (def eval* identity)
-(def print* printer/abs->string)
+(def print* printer/ast->string)
 
 (def rep (comp print* eval* read*))
 

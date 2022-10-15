@@ -15,14 +15,14 @@
   (cond
     (symbol? ast) (if-let [sym (get env ast)]
                     sym
-                    (throw (ex-info "Unresolved symbol." {:error ::unresolved-symbol
-                                                          :symbol ast})))
+                    (throw (ex-info (str "Symbol '" ast "' not found.")
+                                    {:error ::unresolved-symbol
+                                     :symbol ast})))
     ;; TODO: can previous evals in a list affect the next ones? `(do (def a 1) (def b (inc a)))`
-    (list? ast) (map #(eval* env %) ast)
+    (list? ast) (doall (map #(eval* env %) ast))
     (vector? ast) (mapv #(eval* env %) ast)
     (map? ast) (into {} (map (fn [[k v]]
                                (vector k (eval* env v))) ast))
-
     :else ast))
 
 (defn eval-function [env ast]
@@ -50,7 +50,7 @@
 (defn- eval-and-update-env [env ast]
   (cond (= (first ast) 'def!)
         (let [[_def! sym-name form] ast
-              result (eval-ast env form)]
+              result (eval* env form)]
           {:env (assoc env sym-name result)
            :evaluation result})))
 
@@ -64,7 +64,7 @@
 (def read* reader/read-str)
 
 (defn print* [state]
-  (update state :evaluation printer/abs->string))
+  (update state :evaluation printer/ast->string))
 
 (defn rep [env s]
   (print* (root-eval* env (read* s))))

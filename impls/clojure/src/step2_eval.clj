@@ -32,7 +32,7 @@
     :else (eval-ast env ast)))
 
 (def read* reader/read-str)
-(def print* printer/abs->string)
+(def print* printer/ast->string)
 
 (def rep (comp print* (partial eval* repl-env) read*))
 
