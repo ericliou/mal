@@ -28,11 +28,12 @@
 (defn eval-function [env ast]
   (cond
     (= (first ast) 'let*)
-    (let [[_let* bindings & body] ast]
-      ;; eval each binding
-      ;; eval body with new env
-      ;; return body
-      )
+    (let [[_let* bindings body] ast
+          let-env (reduce (fn [env [sym-name expr]]
+                            (assoc env sym-name (eval* env expr)))
+                          env
+                          (partition 2 bindings))]
+      (eval* let-env body))
 
     :else
     (let [[f & args] (eval-ast env ast)]
@@ -68,8 +69,6 @@
 
 (defn rep [env s]
   (print* (root-eval* env (read* s))))
-
-(comment (rep repl-env "[(+ 1 2) 2 3]"))
 
 (defn try-rep [env s]
   (try
