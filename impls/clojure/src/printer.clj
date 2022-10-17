@@ -33,6 +33,7 @@
       (vector? ast) (str "[" (coll-elements->string ast) "]")
       (map? ast) (str "{" (coll-elements->string (apply concat ast)) "}")
       (string? ast) (from-string ast)
+      (fn? ast) "#<function>"
       :else (str ast)))
 
 (comment
