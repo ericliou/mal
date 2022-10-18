@@ -7,60 +7,57 @@
   {'+ +
    '- -
    '* *
-   '/ /})
+   '/ /
+   'do (fn [& exprs] (last exprs))})
 
 (declare eval*)
 
-(defn eval-ast [env ast]
+(defn eval-asts [{:keys [env ast] :as state}]
+  (let [r (reductions (fn [acc x] (eval* {:env (:env acc) :ast x}))
+                      state
+                      ast)]
+    {:env (:env (last r))
+     :evaluation (map :evaluation (rest r))}))
+
+(defn eval-ast [{:keys [env ast] :as state}]
   (cond
-    (symbol? ast) (if-let [sym (get env ast)]
-                    sym
+    (symbol? ast) (if-let [sym-val (get env ast)]
+                    (assoc state :evaluation sym-val)
                     (throw (ex-info (str "Symbol '" ast "' not found.")
                                     {:error ::unresolved-symbol
                                      :symbol ast})))
-    ;; TODO: can previous evals in a list affect the next ones? `(do (def a 1) (def b (inc a)))`
-    (list? ast) (doall (map #(eval* env %) ast))
-    (vector? ast) (mapv #(eval* env %) ast)
-    (map? ast) (into {} (map (fn [[k v]]
-                               (vector k (eval* env v))) ast))
-    :else ast))
+    (list? ast) (eval-asts state)
+    (vector? ast) (update (eval-asts state) :evaluation #(into [] %))
+    (map? ast) (update (eval-asts state) :evaluation #(into {} %))
+    :else (assoc state :evaluation ast)))
 
-(defn eval-function [env ast]
+(defn eval-function [{:keys [env ast] :as state}]
   (cond
     (= (first ast) 'let*)
     (let [[_let* bindings body] ast
           let-env (reduce (fn [env [sym-name expr]]
-                            (assoc env sym-name (eval* env expr)))
+                            (assoc env sym-name (eval* {:env env :ast expr})))
                           env
                           (partition 2 bindings))]
-      (eval* let-env body))
+      (eval* {:env let-env :ast body}))
+
+    (= (first ast) 'def!)
+    (let [[_def! sym-name form] ast
+          {:keys [evaluation]} (eval* {:env env :ast form})]
+      {:env (assoc env sym-name evaluation)
+       :evaluation evaluation})
 
     :else
-    (let [[f & args] (eval-ast env ast)]
-      (apply f args))))
+    (let [{[f & args] :evaluation :as state} (eval-ast {:env env :ast ast})]
+      ;; TODO improve this with update
+      (assoc state :evaluation (apply f args)))))
 
-(defn- changes-env? [ast]
-  (and (list? ast) (= 'def! (first ast))))
-
-(defn eval* [env ast]
+(defn eval* [{:keys [env ast] :as state}]
   (cond
-    (and (list? ast) (empty? ast)) ast
-    (list? ast) (eval-function env ast)
-    :else (eval-ast env ast)))
+    (and (list? ast) (empty? ast))  {:env env :ast ast}
+    (list? ast) (eval-function {:env env :ast ast})
+    :else  (eval-ast {:env env :ast ast})))
 
-(defn- eval-and-update-env [env ast]
-  (cond (= (first ast) 'def!)
-        (let [[_def! sym-name form] ast
-              result (eval* env form)]
-          {:env (assoc env sym-name result)
-           :evaluation result})))
-
-(defn root-eval*
-  "Note: only considering root level `def!` for now."
-  [env ast]
-  (if (changes-env? ast)
-    (eval-and-update-env env ast)
-    {:evaluation (eval* env ast) :env env}))
 
 (def read* reader/read-str)
 
@@ -68,7 +65,7 @@
   (update state :evaluation printer/ast->string))
 
 (defn rep [env s]
-  (print* (root-eval* env (read* s))))
+  (print* (eval* {:env env :ast (read* s)})))
 
 (defn try-rep [env s]
   (try
