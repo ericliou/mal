@@ -55,6 +55,15 @@
                               then-expr
                               else-expr)}))
 
+    (= (first ast) 'fn*)
+    (let [[_fn* args body] ast]
+      (assoc state
+             :evaluation
+             (fn [& args*]
+               ;; TODO needs to remove the bindings
+               (eval* {:env (apply assoc env (interleave args args*))
+                       :ast body}))))
+
     ;; non-special forms
     :else (update (eval-ast state) :evaluation #(apply (first %) (rest %)))))
 
