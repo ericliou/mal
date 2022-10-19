@@ -36,7 +36,8 @@
     (= (first ast) 'let*)
     (let [[_let* bindings body] ast
           let-env (reduce (fn [env [sym-name expr]]
-                            (assoc env sym-name (eval* {:env env :ast expr})))
+                            (let [{:keys [env evaluation]} (eval* {:env env :ast expr})]
+                              (assoc env sym-name evaluation)))
                           env
                           (partition 2 bindings))]
       (eval* {:env let-env :ast body}))
