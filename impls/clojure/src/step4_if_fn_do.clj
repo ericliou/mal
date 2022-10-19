@@ -47,17 +47,21 @@
       {:env (assoc env sym-name evaluation)
        :evaluation evaluation})
 
-    :else
-    (let [{[f & args] :evaluation :as state} (eval-ast {:env env :ast ast})]
-      ;; TODO improve this with update
-      (assoc state :evaluation (apply f args)))))
+    (= (first ast) 'if)
+    (let [[_if test-expr then-expr else-expr] ast
+          {:keys [env evaluation]} (eval* {:env env :ast test-expr})]
+      (eval* {:env env :ast (if evaluation
+                              then-expr
+                              else-expr)}))
+
+    ;; non-special forms
+    :else (update (eval-ast state) :evaluation #(apply (first %) (rest %)))))
 
 (defn eval* [{:keys [env ast] :as state}]
   (cond
     (and (list? ast) (empty? ast))  {:env env :ast ast}
     (list? ast) (eval-function {:env env :ast ast})
     :else  (eval-ast {:env env :ast ast})))
-
 
 (def read* reader/read-str)
 
