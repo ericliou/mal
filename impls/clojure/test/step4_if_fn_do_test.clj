@@ -5,7 +5,10 @@
 
 (deftest rep-test
   (testing "simple sexps"
-    (are [s evaluation] (= evaluation (:evaluation (sut/eval* {:env sut/repl-env :ast (sut/read* s)})))
+    (are [s evaluation] (= evaluation
+                           (-> {:env sut/repl-env :ast (sut/read* s)}
+                               sut/eval*
+                               :evaluation))
       "(+ 1 2)" 3
       "{1 (+ 1 2)}" {1 3}
       "(do (def! x 2) (+ 2 x))" 4
