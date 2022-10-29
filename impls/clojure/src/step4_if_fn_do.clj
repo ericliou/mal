@@ -64,7 +64,7 @@
     (= (first ast) 'def!)
     (let [[_def! sym-name form] ast
           {:keys [evaluation]} (eval* {:env env :ast form})]
-      {:env (assoc env sym-name evaluation)
+      {:env (put-root-sym env sym-name evaluation)
        :evaluation evaluation})
 
     (= (first ast) 'if)
