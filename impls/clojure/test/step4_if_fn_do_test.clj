@@ -18,6 +18,24 @@
       "(let* [a (+ 2 2)] (+ 3 a))" 7
       "((fn* (a) (+ a 1)) 2)" 3))
 
+  (testing "lambda fn* doing def! inside body"
+    (is (= 1
+           (-> {:env sut/repl-env
+                :ast (sut/read* "((fn* (a) (def! x a)) 1)")}
+               sut/eval*
+               :env
+               (sut/get-sym 'x))))
+
+    (testing "lambda fn* keep def! done before it"
+
+      (is (= 1
+             (-> {:env sut/repl-env
+                  :ast (sut/read* "((fn* (a) (def! x a)) (def! y 1))")}
+                 sut/eval*
+                 :env
+                 (sut/get-sym 'y))))
+      ))
+
   #_(testing "let* removes binding after scope"
     (let [s "(let* [a 1] a)"
           {:keys [env]} (sut/eval* {:env sut/repl-env

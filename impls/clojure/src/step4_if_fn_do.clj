@@ -92,7 +92,17 @@
     ;; non-special forms
     ;; BUG fn* will be called here, it will return full :env and :evaluation map.
     ;; But other fns like '+ only returns the value
-    :else (tap (update (tap (eval-ast state)) :evaluation #(apply (first %) (rest %))))))
+    :else (let [{:keys [env evaluation] :as new-state } (eval-ast state)
+                [f & args] evaluation
+                f-result (apply f args)
+                f-env (if (map? f-result) (:env f-result) (:env new-state))
+                f-result (if (map? f-result) (:evaluation f-result) f-result)
+                ]
+
+            (assoc new-state
+                   :env f-env
+                   :evaluation f-result
+                   ))))
 
 (defn eval* [{:keys [env ast] :as state}]
   (cond
