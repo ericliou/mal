@@ -5,10 +5,7 @@
 
 (deftest rep-test
   (testing "simple sexps"
-    (are [s evaluation] (= evaluation
-                           (-> {:env sut/repl-env :ast (sut/read* s)}
-                               sut/eval*
-                               :evaluation))
+    (are [s evaluation] (= evaluation (sut/eval* {} (sut/read* s)))
       "(+ 1 2)" 3
       "{1 (+ 1 2)}" {1 3}
       "(do (def! x 2) (+ 2 x))" 4
@@ -20,24 +17,15 @@
 
   (testing "lambda fn* doing def! inside body"
     (is (= 1
-           (-> {:env sut/repl-env
-                :ast (sut/read* "((fn* (a) (def! x a)) 1)")}
-               sut/eval*
-               :env
-               (sut/get-sym 'x))))
+           (do (sut/eval* {} (sut/read* "((fn* (a) (def! x a)) 1)"))
+               (sut/get-sym {} 'x))))
 
-    (testing "lambda fn* keep def! done before it"
-
+    (testing "lambda fn* doesn't touch defs done before it"
       (is (= 1
-             (-> {:env sut/repl-env
-                  :ast (sut/read* "((fn* (a) (def! x a)) (def! y 1))")}
-                 sut/eval*
-                 :env
-                 (sut/get-sym 'y))))
-      ))
+             (do (sut/eval* {} (sut/read* "((fn* (a) (def! x a)) (def! y 1))"))
+                 (sut/get-sym {} 'y))))))
 
-  #_(testing "let* removes binding after scope"
-    (let [s "(let* [a 1] a)"
-          {:keys [env]} (sut/eval* {:env sut/repl-env
-                             :ast (sut/read* s)})]
-    (is (nil? (get env 'a))))))
+  (testing "let* doesn't leave dirty bindings outside of scope"
+      (let [s "(let* [a 1] a)"
+            _ (sut/eval* {} (sut/read* s))]
+        (is (thrown? Exception (sut/get-sym {} 'a))))))

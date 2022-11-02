@@ -4,129 +4,105 @@
             [printer]))
 
 (def repl-env
-  [{'+ +
-    '- -
-    '* *
-    '/ /
-    'do (fn [& exprs] (last exprs))}])
+  {'+ +
+   '- -
+   '* *
+   '/ /
+   'do (fn [& exprs] (last exprs))})
+
 
 ;; ------------------------------------------
-;; move to env ns
+;; TODO move to env ns
+;; root env
+
+(def root-env (atom repl-env))
 
 (defn get-sym [env ast]
-  (if (peek env)
-    (or (get (peek env) ast) (get-sym (pop env) ast))
-    (throw (ex-info (str "Symbol '" ast "' not found.")
-                    {:error ::unresolved-symbol
-                     :symbol ast}))))
+  (or (get env ast)
+      (get @root-env ast)
+      (throw (ex-info (str "Symbol '" ast "' not found.")
+                      {:error ::unresolved-symbol
+                       :symbol ast}))))
 
-(defn put-sym [env sym value]
-  (conj (pop env) (assoc (peek env) sym value)))
+(defn put-root-sym [sym value]
+  (swap! root-env assoc sym value))
 
-(defn put-root-sym [env sym value]
-  (update env 0 assoc sym value))
-
-(defn new-scope [env]
-  (conj env {}))
-
-(defn pop-scope [env]
-  (pop env))
 ;; ------------------------------------------
 
 (declare eval*)
 
-(defn eval-asts [{:keys [env ast] :as state}]
-  (let [r (reductions (fn [acc x] (eval* {:env (:env acc) :ast x}))
-                      state
-                      ast)]
-    {:env (:env (last r))
-     :evaluation (map :evaluation (rest r))}))
-
-(defn eval-ast [{:keys [env ast] :as state}]
+(defn eval-ast
+  "Evaluate the ast and preserve the data structure.
+  e.g. if the ast is a vector, it represent a vector, so it should return a vector."
+  [env ast]
   (cond
-    (symbol? ast) (assoc state :evaluation (get-sym env ast))
-    (list? ast) (eval-asts state)
-    (vector? ast) (update (eval-asts state) :evaluation #(into [] %))
-    (map? ast) (update (eval-asts state) :evaluation #(into {} %))
-    :else (assoc state :evaluation ast)))
+    (symbol? ast) (get-sym env ast)
+    (list? ast) (doall (map #(eval* env %) ast))
+    (vector? ast) (mapv #(eval* env %) ast)
+    (map? ast) (into {} (map (fn [[k v]]
+                               (vector k (eval* env v))) ast))
+    :else ast))
 
-(defn eval-function [{:keys [env ast] :as state}]
+(defn eval-function
+  "Can do side effects."
+  [env ast]
   (cond
     (= (first ast) 'let*)
     (let [[_let* bindings body] ast
           let-env (reduce (fn [env [sym-name expr]]
-                            (let [{:keys [env evaluation]} (eval* {:env env :ast expr})]
-                              (put-sym env sym-name evaluation)))
-                          (new-scope env)
+                            (assoc env sym-name (eval* env expr)))
+                          env
                           (partition 2 bindings))]
-      (update (eval* {:env let-env :ast body}) :env pop-scope))
+      (eval* let-env body))
 
     (= (first ast) 'def!)
     (let [[_def! sym-name form] ast
-          {:keys [evaluation]} (eval* {:env env :ast form})]
-      {:env (put-root-sym env sym-name evaluation)
-       :evaluation evaluation})
+          evaluation (eval* env form)]
+      (put-root-sym sym-name evaluation)
+      evaluation)
 
     (= (first ast) 'if)
     (let [[_if test-expr then-expr else-expr] ast
-          {:keys [env evaluation]} (eval* {:env env :ast test-expr})]
-      (eval* {:env env :ast (if evaluation
-                              then-expr
-                              else-expr)}))
+          evaluation (eval* env test-expr)]
+      (eval* env (if evaluation
+                   then-expr
+                   else-expr)))
 
     (= (first ast) 'fn*)
     (let [[_fn* args body] ast]
-      (assoc state
-             :evaluation
-             (fn [& args*]
-               ;; TODO needs to remove the bindings. Add tests.
-               ;; Note: it seems that clojure compiles and resolves symbols at this stage. This doesn't.
-               ;; TODO deal with exceptions, env stack will be wrong
-               (-> (eval* {:env (reduce (fn [env [sym value]]
-                                          (put-sym env sym value))
-                                        (new-scope env)
-                                        (partition 2 (interleave args args*)))
-                           :ast body})
-                   (update :env pop-scope)))))
+      (fn [& args*]
+        ;; Note: it seems that clojure compiles and resolves symbols at this stage. This doesn't.
+        (eval* (reduce (fn [env [arg value]]
+                         (assoc env arg value))
+                       env ; this implements lexical scope
+                       (partition 2 (interleave args args*)))
+               body)))
 
     ;; non-special forms
-    ;; BUG fn* will be called here, it will return full :env and :evaluation map.
-    ;; But other fns like '+ only returns the value
-    :else (let [{:keys [env evaluation] :as new-state } (eval-ast state)
-                [f & args] evaluation
-                f-result (apply f args)
-                f-env (if (map? f-result) (:env f-result) (:env new-state))
-                f-result (if (map? f-result) (:evaluation f-result) f-result)
-                ]
+    :else (let [[f & args] (eval-ast env ast)]
+            (apply f args))))
 
-            (assoc new-state
-                   :env f-env
-                   :evaluation f-result
-                   ))))
-
-(defn eval* [{:keys [env ast] :as state}]
+(defn eval* [env ast]
   (cond
-    (and (list? ast) (empty? ast))  {:env env :ast ast}
-    (list? ast) (eval-function {:env env :ast ast})
-    :else  (eval-ast {:env env :ast ast})))
+    (and (list? ast) (empty? ast)) ast
+    (list? ast) (eval-function env ast)
+    :else (eval-ast env ast)))
 
 (def read* reader/read-str)
 
-(defn print* [state]
-  (update state :evaluation printer/ast->string))
+(def print* printer/ast->string)
 
-(defn rep [env s]
-  (print* (eval* {:env env :ast (read* s)})))
+(defn rep [s]
+  ;; initialize env with empty map, root env is globally accessed
+  (print* (eval* {} (read* s))))
 
-(defn try-rep [env s]
+(defn try-rep [s]
   (try
-    (rep env s)
-    (catch Exception ex {:evaluation (str ex) :env env :ex ex})))
+    (rep s)
+    (catch Exception ex {:exception ex})))
 
 #_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn run [& _]
-  (loop [env repl-env]
-    (let [{:keys [env evaluation]} (try-rep env (readline/fancy-read-line))]
-      (println evaluation) (flush)
-      (recur env))))
-
+  (while true
+    (println (try-rep (readline/fancy-read-line)))
+    (flush)))
