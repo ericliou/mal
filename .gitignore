@@ -25,3 +25,5 @@ GRTAGS
 logs
 old
 tmp/
+.dir-locals.el
+.projectile
