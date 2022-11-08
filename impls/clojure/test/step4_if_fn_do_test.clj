@@ -28,4 +28,11 @@
   (testing "let* doesn't leave dirty bindings outside of scope"
       (let [s "(let* [a 1] a)"
             _ (sut/eval* {} (sut/read* s))]
-        (is (thrown? Exception (sut/get-sym {} 'a))))))
+        (is (thrown? Exception (sut/get-sym {} 'a)))))
+
+  (testing "equality"
+    (is (= false
+           (sut/eval*
+            {}
+            (sut/read* "(= (list) nil)"))))))
+

@@ -1,21 +1,14 @@
 (ns step4-if-fn-do
   (:require [readline]
             [reader]
-            [printer]))
-
-(def repl-env
-  {'+ +
-   '- -
-   '* *
-   '/ /
-   'do (fn [& exprs] (last exprs))})
-
+            [printer]
+            [core]))
 
 ;; ------------------------------------------
 ;; TODO move to env ns
 ;; root env
 
-(def root-env (atom repl-env))
+(def root-env (atom core/namespace))
 
 (defn get-sym [env ast]
   (or (get env ast)
