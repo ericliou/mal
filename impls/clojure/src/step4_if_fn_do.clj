@@ -7,6 +7,20 @@
 
 (declare eval*)
 
+(defn- map-fn-bindings [bindings args]
+  (loop [result {}
+         bindings bindings
+         args args]
+    (cond
+      (empty? bindings) result
+
+      (= '& (first bindings))
+      (assoc result (second bindings) (apply list args))
+
+      :else (recur (assoc result (first bindings) (first args))
+                   (rest bindings)
+                   (rest args)))))
+
 (defn eval-ast
   "Evaluate the ast and preserve the data structure.
   e.g. if the ast is a vector, it represent a vector, so it should return a vector."
@@ -47,11 +61,10 @@
     (= (first ast) 'fn*)
     (let [[_fn* bindings body] ast]
       (fn [& args]
-        ;; Note: it seems that clojure compiles and resolves symbols at this stage. This doesn't.
         (eval* (reduce (fn [env [arg value]]
                          (env/put-sym! env arg value))
                        (env/new-env env) ; this implements lexical scope
-                       (partition 2 (interleave bindings args)))
+                       (map-fn-bindings bindings args))
                body)))
 
     ;; non-special forms
