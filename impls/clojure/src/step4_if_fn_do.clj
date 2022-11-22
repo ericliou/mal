@@ -2,25 +2,8 @@
   (:require [readline]
             [reader]
             [printer]
-            [core]))
-
-;; ------------------------------------------
-;; TODO move to env ns
-;; root env
-
-(def root-env (atom core/namespace))
-
-(defn get-sym [env ast]
-  (or (get env ast)
-      (get @root-env ast)
-      (throw (ex-info (str "Symbol '" ast "' not found.")
-                      {:error ::unresolved-symbol
-                       :symbol ast}))))
-
-(defn put-root-sym [sym value]
-  (swap! root-env assoc sym value))
-
-;; ------------------------------------------
+            [core]
+            [env]))
 
 (declare eval*)
 
@@ -29,7 +12,7 @@
   e.g. if the ast is a vector, it represent a vector, so it should return a vector."
   [env ast]
   (cond
-    (symbol? ast) (get-sym env ast)
+    (symbol? ast) (env/get-sym env ast)
     (list? ast) (doall (map #(eval* env %) ast))
     (vector? ast) (mapv #(eval* env %) ast)
     (map? ast) (into {} (map (fn [[k v]]
@@ -43,15 +26,15 @@
     (= (first ast) 'let*)
     (let [[_let* bindings body] ast
           let-env (reduce (fn [env [sym-name expr]]
-                            (assoc env sym-name (eval* env expr)))
-                          env
+                            (env/put-sym! env sym-name (eval* env expr)))
+                          (env/new-env env)
                           (partition 2 bindings))]
       (eval* let-env body))
 
     (= (first ast) 'def!)
     (let [[_def! sym-name form] ast
           evaluation (eval* env form)]
-      (put-root-sym sym-name evaluation)
+      (env/put-root-sym! env sym-name evaluation)
       evaluation)
 
     (= (first ast) 'if)
@@ -62,13 +45,13 @@
                    else-expr)))
 
     (= (first ast) 'fn*)
-    (let [[_fn* args body] ast]
-      (fn [& args*]
+    (let [[_fn* bindings body] ast]
+      (fn [& args]
         ;; Note: it seems that clojure compiles and resolves symbols at this stage. This doesn't.
         (eval* (reduce (fn [env [arg value]]
-                         (assoc env arg value))
-                       env ; this implements lexical scope
-                       (partition 2 (interleave args args*)))
+                         (env/put-sym! env arg value))
+                       (env/new-env env) ; this implements lexical scope
+                       (partition 2 (interleave bindings args)))
                body)))
 
     ;; non-special forms
@@ -85,17 +68,17 @@
 
 (def print* printer/ast->string)
 
-(defn rep [s]
-  ;; initialize env with empty map, root env is globally accessed
-  (print* (eval* {} (read* s))))
+(defn rep [env s]
+  (print* (eval* env (read* s))))
 
-(defn try-rep [s]
+(defn try-rep [env s]
   (try
-    (rep s)
+    (rep env s)
     (catch Exception ex {:exception ex})))
 
 #_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn run [& _]
-  (while true
-    (println (try-rep (readline/fancy-read-line)))
-    (flush)))
+  (let [root-env (env/init-root-env!)]
+    (while true
+      (println (try-rep root-env (readline/fancy-read-line)))
+      (flush))))
