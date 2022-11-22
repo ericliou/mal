@@ -92,6 +92,7 @@
 #_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn run [& _]
   (let [root-env (env/init-root-env!)]
+    (try-rep root-env "(def! not (fn* (a) (if a false true)))")
     (while true
       (println (try-rep root-env (readline/fancy-read-line)))
       (flush))))
